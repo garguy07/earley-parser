@@ -1,1 +1,3 @@
-# earley-parser
+# Earley Parser Assignment 
+
+## Computational Psycholinguistics
