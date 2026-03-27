@@ -339,15 +339,29 @@ def get_all_parses(all_items, start_symbol, n):
 # ──────────────────────────────────────────────
 
 
+def best_parse_weight(all_items, start_symbol, n):
+    roots = [
+        it
+        for it in all_items[n]
+        if it.is_complete() and it.rule.lhs == start_symbol and it.start == 0
+    ]
+    if not roots:
+        return None
+    return max(it.log_weight for it in roots)
+
+
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: ./parse.py foo.gr foo.sen", file=sys.stderr)
+    best_only = "--best-only" in sys.argv
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+
+    if len(args) != 2:
+        print("Usage: ./parse.py foo.gr foo.sen [--best-only]", file=sys.stderr)
         sys.exit(1)
 
-    grammar = load_grammar(sys.argv[1])
+    grammar = load_grammar(args[0])
     parser = EarleyParser(grammar)
 
-    with open(sys.argv[2]) as fh:
+    with open(args[1]) as fh:
         sentences = [line.strip() for line in fh if line.strip()]
 
     for sent in sentences:
@@ -358,22 +372,26 @@ def main():
 
         chart, start_sym = parser.parse(words)
 
-        # Print the chart (complete items only)
         print_chart(chart, len(words), show_incomplete=False)
 
-        # Enumerate and print all parse trees
-        parses = get_all_parses(parser.all_items, start_sym, len(words))
-
-        if not parses:
-            print("\n[No parse found]")
+        if best_only:
+            w = best_parse_weight(parser.all_items, start_sym, len(words))
+            if w is None:
+                print("\n[No parse found]")
+            else:
+                print(f"\n[Best parse]  log_weight={w:.5f}")
         else:
-            print(f"\n[{len(parses)} parse(s) found]")
-            for rank, (lp, tree) in enumerate(parses, 1):
-                print(
-                    f"\n--- Parse #{rank}  log_prob={lp:.6f}"
-                    f"  prob={math.exp(lp):.6e} ---"
-                )
-                print(tree_str(tree))
+            parses = get_all_parses(parser.all_items, start_sym, len(words))
+            if not parses:
+                print("\n[No parse found]")
+            else:
+                print(f"\n[{len(parses)} parse(s) found]")
+                for rank, (lp, tree) in enumerate(parses, 1):
+                    print(
+                        f"\n--- Parse #{rank}  log_prob={lp:.6f}"
+                        f"  prob={math.exp(lp):.6e} ---"
+                    )
+                    print(tree_str(tree))
 
 
 if __name__ == "__main__":

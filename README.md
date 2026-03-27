@@ -1,6 +1,6 @@
 # Earley Parser
 
-### Computational Linguistics Assignment
+### Computational Psycholinguistics Assignment 5
 
 A probabilistic Earley parser for context-free grammars, implemented in Python. This assignment is adapted from Prof. Jason Eisner's NLP course at Johns Hopkins University.
 
@@ -8,110 +8,103 @@ A probabilistic Earley parser for context-free grammars, implemented in Python. 
 
 ```
 .
-├── docs
-│   ├── Assignment.pdf  # Assignment instructions and questions
-│   └── Report.pdf      # Final report
-├── parse.py            # Main parser implementation
-├── README.md           # This file
-├── soldier.gr          # Grammar for Q3 sentence
-├── soldier.sen         # Sentence file for Q3
-├── timeflies.gr        # Grammar from Figure 1 (Q1 & Q2)
-├── timeflies.sen       # Sentence file for Q1 & Q2
-└── venv/               # Python virtual environment
+├── docs/
+│   ├── Assignment.pdf      # Original assignment specification
+│   └── Report.pdf          # Submission report (Q1–Q4)
+├── arith.gr                # Arithmetic grammar (JHU test)
+├── arith.sen               # Arithmetic sentences (JHU test)
+├── papa.gr                 # Papa grammar (JHU Earley animation test)
+├── papa.sen                # Papa sentences
+├── parse.py                # Main parser implementation
+├── permissive.gr           # Permissive grammar (JHU sanity check)
+├── permissive.sen          # Permissive sentences
+├── README.md               # This file
+├── soldier.gr              # Grammar for Q3 sentence
+├── soldier.sen             # Q3 sentence: "the man shot the soldier with a gun"
+├── timeflies.gr            # Grammar from Figure 1 (Q1 & Q2)
+├── timeflies.sen           # Q1 sentence: "time flies like an arrow"
+└── venv/                   # Python virtual environment
 ```
 
 ## Requirements
 
 - Python 3.7+
-- No external dependencies (uses only the standard library)
+- No external dependencies (standard library only)
 
 ## Setup
 
 ```bash
-# Create and activate virtual environment (optional)
 python3 -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
+source venv/bin/activate      # On Windows: venv\Scripts\activate
 ```
 
 ## Usage
 
 ```bash
-./parse.py foo.gr foo.sen
+python3 parse.py foo.gr foo.sen [--best-only]
 ```
 
-Or explicitly with Python:
-
-```bash
-python3 parse.py foo.gr foo.sen
-```
+| Flag          | Effect                                                        |
+| ------------- | ------------------------------------------------------------- |
+| _(none)_      | Print chart + all parse trees with probabilities              |
+| `--best-only` | Print chart + best parse weight only (use for large grammars) |
 
 ### File Formats
 
-**Grammar file (`.gr`)** - each non-blank, non-comment line has the form:
+**Grammar file (`.gr`)** - one rule per line:
 
 ```
 probability   LHS   RHS_1   RHS_2 ...
 ```
 
-- Probabilities for rules sharing the same LHS must sum to 1.
-- Epsilon rules (`X →`) are not supported.
-- Files are case-sensitive.
+- Probabilities for rules sharing the same LHS must sum to 1
+- Epsilon rules are not supported
+- Files are case-sensitive
 
-**Sentence file (`.sen`)**: one sentence per line; blank lines are skipped.
+**Sentence file (`.sen`)** - one sentence per line; blank lines are skipped.
 
 ## Running the Assignment Questions
 
-**Q1 & Q2: Chart and probabilities for "time flies like an arrow":**
-
 ```bash
+# Q1 & Q2: chart and parse trees for "time flies like an arrow"
 python3 parse.py timeflies.gr timeflies.sen
-```
 
-**Q3: Chart and parse trees for "the man shot the soldier with a gun":**
-
-```bash
+# Q3: chart and parse trees for "the man shot the soldier with a gun"
 python3 parse.py soldier.gr soldier.sen
 ```
 
-## Output Format
+## Running the JHU Test Files
 
-For each sentence the parser prints:
+Use `--best-only` for all JHU test grammars. They are large and tree enumeration would not terminate in reasonable time.
 
-1. The chart: one column per word boundary (0 through n), showing all complete items in the form:
+```bash
+python3 parse.py permissive.gr permissive.sen --best-only
 
-   ```
-   [start,end] LHS -> RHS •   w=log_weight
-   ```
+python3 parse.py papa.gr papa.sen --best-only
 
-2. All parse trees ranked by probability, printed as indented trees with log-probability and probability values:
-   ```
-   --- Parse #1  log_prob=-5.408132  prob=4.480000e-03 ---
-   (S -> NP VP
-     (NP -> N
-       (N -> time))
-     ...)
-   ```
+python3 parse.py arith.gr arith.sen --best-only
+
+python3 parse.py wallstreet.gr wallstreet.sen --best-only
+```
 
 ## Implementation Notes
 
 ### Data structures
 
-| Structure      | Purpose                                                                                              |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| `chart[i]`     | `dict {key → Item}`: one entry per `(rule, dot, start, end)`; used for O(1) duplicate detection only |
-| `all_items[i]` | `list` of every `Item` ever pushed; preserves all derivation chains for parse enumeration            |
-| `agenda[i]`    | FIFO queue of items to process in column `i`                                                         |
+| Structure      | Purpose                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------- |
+| `chart[i]`     | `dict {key -> Item}`: one entry per `(rule, dot, start, end)`; used for O(1) duplicate detection only |
+| `all_items[i]` | `list` of every `Item` ever pushed; preserves all derivation chains for parse enumeration             |
+| `agenda[i]`    | FIFO queue of items to process in column `i`                                                          |
 
 ### Complexity
 
-- **Time:** O(n³) for a fixed grammar. Each unique chart key is enqueued and processed exactly once.
-- **Space:** O(n²). At most one entry per `(rule, dot, start, end)` across n+1 columns.
-- **Push:** O(1). A single hash lookup determines whether the key is new; duplicate items are never re-queued.
-
-### Correctness design
-
-The `chart` dict and `all_items` list serve distinct purposes. The chart provides O(1) deduplication; `all_items` preserves every derivation's back-pointer independently. The chart is never updated in-place as doing so would overwrite the first derivation's back-pointer and make it unrecoverable. `enum_trees()` recursively walks `all_items` to enumerate all parse trees.
+| Property | Bound | Reason                                                                   |
+| -------- | ----- | ------------------------------------------------------------------------ |
+| Space    | O(n²) | At most one chart entry per `(rule, dot, start, end)` across n+1 columns |
+| Time     | O(n³) | Each unique key is enqueued and processed exactly once                   |
+| Push     | O(1)  | Single hash lookup; duplicate keys are never re-queued                   |
 
 ## References
 
-- Eisner, J. JHU NLP course materials: [Earley algorithm slides](https://www.cs.jhu.edu/~jason/465/PowerPoint/lect10-earley.ppt) and [hw-parse notes](https://www.cs.jhu.edu/~jason/465/hw-parse/hw-parse.pdf).
+- Eisner, J. JHU NLP course: [Earley slides](https://www.cs.jhu.edu/~jason/465/PowerPoint/lect10-earley.ppt) · [hw-parse notes](https://www.cs.jhu.edu/~jason/465/hw-parse/hw-parse.pdf)
