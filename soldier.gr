@@ -1,0 +1,17 @@
+# Grammar for "the man shot the soldier with a gun"
+# PP attachment is ambiguous (VP-attach vs NP-attach)
+1.0   S    NP VP
+0.5   NP   DT N
+0.3   NP   DT N PP
+0.2   NP   N
+0.5   VP   V NP
+0.5   VP   V NP PP
+1.0   PP   P NP
+0.3   DT   the
+0.3   DT   a
+0.4   DT   an
+1.0   N    man
+0.5   N    soldier
+0.5   N    gun
+1.0   V    shot
+1.0   P    with
